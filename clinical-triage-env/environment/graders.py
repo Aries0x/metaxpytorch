@@ -20,7 +20,7 @@ from environment.models import (
 from environment.data_generator import PATTERNS
 
 def _clamp(v: float) -> float:
-    return max(0.0, min(1.0, v))
+    return max(0.001, min(0.999, v))
 
 # ═════════════════════════════════════════════════════════════════════════════
 # TASK 1 — Lab Technician: order tests progressively and flag accurately
@@ -32,12 +32,12 @@ def grade_task1(patient: PatientState, ai_action: Task1Action, resources: Resour
     Total tests should be fully covered.
     """
     if not hasattr(ai_action, "flagged_tests") or not ai_action.flagged_tests:
-        return Reward(score=0.0, breakdown={}, feedback="No flagged tests submitted yet.")
+        return Reward(score=0.001, breakdown={}, feedback="No flagged tests submitted yet.")
 
     gt: Dict[str, str] = {name: tr.status for name, tr in patient.true_tests.items()}
     total = len(gt)
     if total == 0:
-        return Reward(score=0.0, breakdown={}, feedback="No tests in report.")
+        return Reward(score=0.001, breakdown={}, feedback="No tests in report.")
 
     ai_flags: Dict[str, str] = ai_action.flagged_tests
 
@@ -139,7 +139,7 @@ def grade_task3(patients: List[PatientState], ai_action: Task3Action, step: int)
     Bonus if the ranking actually correlates with underlying acuity.
     """
     if not patients:
-        return Reward(score=0.0)
+        return Reward(score=0.001)
         
     outcome_scores = {
         "STABILIZED": 1.0,
