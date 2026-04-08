@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinicalTriageEnv - Interactive UI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        :root {
+            --bg: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-hover: rgba(51, 65, 85, 0.9);
+            --border: rgba(148, 163, 184, 0.2);
+            --accent: #22d3ee;
+            --accent-glow: rgba(34, 211, 238, 0.3);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --critical: #ef4444;
+            --stable: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at top right, var(--accent-glow) 0%, transparent 40%);
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 320px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-right: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .task-card {
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-card:hover {
+            background: var(--surface-hover);
+            transform: translateX(4px);
+        }
+        .task-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+        .task-card h3 { margin: 0 0 4px 0; font-size: 1.1rem; }
+        .task-card p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+
+        #game-controls {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .btn {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn:hover { background: var(--surface-hover); }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #06b6d4;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+        
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .7; transform: scale(0.95); }
+        }
+
+        /* Main Stage */
+        #main-stage {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .top-bar .info-chip {
+            padding: 8px 16px;
+            background: var(--surface);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Patient Grid */
+        #patients-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            align-items: start;
+        }
+
+        .patient-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+        .patient-header h2 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .status-WAITING { background: #f59e0b; color: #fff; }
+        .status-BEING_ASSESSED { background: #3b82f6; color: #fff; }
+        .status-BEING_TREATED { background: #8b5cf6; color: #fff; }
+        .status-STABILIZED { background: var(--stable); color: #fff; }
+        .status-CRITICAL_EVENT { background: var(--critical); color: #fff; animation: pulse 1s infinite; }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .vital-box {
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .vital-box .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+        .vital-box .value { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-top: 4px; }
+        
+        .vital-critical .value { color: var(--critical); text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+        .vital-warning .value { color: #f59e0b; }
+
+        /* Action Panel */
+        .action-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .action-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        select, input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+            width: 100%;
+        }
+        select:focus, input:focus { border-color: var(--accent); }
+
+        /* Tests Grid */
+        .tests-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .tests-table th, .tests-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .tests-table th { color: var(--text-muted); font-weight: 600; }
+
+        /* Event Log */
+        #event-log {
+            background: #000;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 150px;
+            overflow-y: auto;
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+        .log-entry { margin-bottom: 4px; }
+        .log-error { color: var(--critical); }
+        
+        /* Modal for End Game */
+        #end-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .score-display {
+            font-size: 4rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin: 24px 0;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="header">
+            <h1>Triage AI</h1>
+            <p style="margin:0; color:var(--text-muted); font-size: 0.85rem;">Human-Playable Mode</p>
+        </div>
+
+        <div id="task-list">
+            Loading tasks...
+        </div>
+
+        <div id="game-controls">
+            <button id="reset-btn" class="btn active pulse" onclick="resetEpisode()">Start Episode</button>
+        </div>
+    </div>
+
+    <!-- Main Stage -->
+    <div id="main-stage">
+        <div class="top-bar glass">
+            <div class="info-chip" id="info-step">Step: 0 / 0</div>
+            <div class="info-chip" id="info-time">00:00 Elapsed</div>
+            <div class="info-chip" id="info-budget">Test Budget: $0</div>
+            <div class="info-chip" id="info-doctors">Doctors: 0/0</div>
+        </div>
+
+        <div id="patients-container">
+            <!-- Patient cards injected here -->
+            <div style="color: var(--text-muted); font-size: 1.2rem; align-self: center; text-align: center; width: 100%;">
+                Select a task and click 'Start Episode'<br><small>Task 1 and Task 2 are fully playable. Task 3 is observation mode.</small>
+            </div>
+        </div>
+
+        <div id="event-log">
+            <div class="log-entry">System online. Ready to commence triage.</div>
+        </div>
+    </div>
+
+    <!-- End Modal -->
+    <div id="end-modal">
+        <div class="glass modal-content">
+            <h2>Episode Complete</h2>
+            <div class="score-display" id="final-score">0.00</div>
+            <p id="final-stats" style="margin-bottom: 24px;">Steps taken: 0</p>
+            <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // API Address (Defaults to relative URL to work on HF Spaces)
+        const API_URL = window.location.origin;
+
+        // State
+        let currentTask = "task1";
+        let stateObs = null;
+        let isDone = false;
+        
+        // Pointers for UI interactions
+        let pendingTestsToOrder = [];
+        let pendingDiag = "";
+        let pendingSev = "";
+
+        // Elements
+        const taskListEl = document.getElementById('task-list');
+        const patientsContainerEl = document.getElementById('patients-container');
+        const eventLogEl = document.getElementById('event-log');
+
+        async function init() {
+            try {
+                const res = await fetch(`${API_URL}/tasks`);
+                const tasks = await res.json();
+                renderTasks(tasks);
+            } catch (err) {
+                logEvent("Failed to connect to API server.", true);
+            }
+        }
+
+        function renderTasks(tasks) {
+            taskListEl.innerHTML = "";
+            tasks.forEach(t => {
+                const el = document.createElement('div');
+                el.className = `task-card glass ${t.id === currentTask ? 'active' : ''}`;
+                el.onclick = () => {
+                    currentTask = t.id;
+                    document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+                    el.classList.add('active');
+                };
+                el.innerHTML = `
+                    <h3>${t.name} (${t.difficulty})</h3>
+                    <p>${t.description}</p>
+                `;
+                taskListEl.appendChild(el);
+            });
+        }
+
+        function logEvent(msg, isError=false) {
+            const el = document.createElement('div');
+            el.className = 'log-entry' + (isError ? ' log-error' : '');
+            el.innerText = `> ${msg}`;
+            eventLogEl.prepend(el);
+        }
+
+        async function resetEpisode() {
+            logEvent(`Resetting environment for ${currentTask}...`);
+            isDone = false;
+            pendingTestsToOrder = [];
+            document.getElementById('reset-btn').classList.remove('pulse');
+            document.getElementById('reset-btn').innerText = "Restart Episode";
+            
+            try {
+                const res = await fetch(`${API_URL}/reset`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({task_id: currentTask})
+                });
+                stateObs = await res.json();
+                renderState();
+                logEvent(`Started new episode.`);
+            } catch (err) {
+                logEvent(`Error resetting: ${err}`, true);
+            }
+        }
+
+        async function submitStep(actionDict) {
+            if (isDone) return;
+            logEvent(`Sending Action...`);
+            try {
+                const res = await fetch(`${API_URL}/step`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(actionDict)
+                });
+                const result = await res.json();
+                stateObs = result.observation;
+                isDone = result.done;
+                
+                // Print events
+                if (stateObs.events) {
+                    stateObs.events.forEach(e => logEvent(e));
+                }
+                
+                renderState();
+                logEvent(`Step Complete | Reward: ${result.reward.toFixed(2)} | Done: ${isDone}`);
+
+                if (isDone) {
+                    document.getElementById('final-score').innerText = result.reward.toFixed(2);
+                    document.getElementById('final-stats').innerText = `Completed in ${stateObs.step_number} steps.`;
+                    document.getElementById('end-modal').style.display = 'flex';
+                }
+                
+                // Clear ephemeral inputs
+                pendingTestsToOrder = [];
+
+            } catch (err) {
+                logEvent(`Step Error: ${err}`, true);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('end-modal').style.display = 'none';
+            document.getElementById('reset-btn').classList.add('pulse');
+        }
+
+        function getVitalClass(val, min, max) {
+            if (val < min || val > max) return "vital-critical";
+            return "";
+        }
+
+        function renderState() {
+            if (!stateObs) return;
+
+            document.getElementById('info-step').innerText = `Step: ${stateObs.step_number} / ${stateObs.max_steps}`;
+            document.getElementById('info-time').innerText = `Time: ${(stateObs.step_number * 15)} mins elapsed`;
+            document.getElementById('info-budget').innerText = `Test Budget: ${stateObs.resources.test_budget}`;
+            document.getElementById('info-doctors').innerText = `Doctors: ${stateObs.resources.doctors_available} / ${stateObs.resources.doctors_total}`;
+
+            patientsContainerEl.innerHTML = "";
+
+            stateObs.patients.forEach(p => {
+                const isCritHr = getVitalClass(p.vitals.heart_rate, 50, 110);
+                const isCritSp = getVitalClass(p.vitals.spo2, 90, 100);
+                const isCritBp = getVitalClass(p.vitals.bp_systolic, 80, 160);
+
+                let testRows = "";
+                for (const [name, data] of Object.entries(p.revealed_tests)) {
+                    testRows += `
+                        <tr>
+                            <td>${name}</td>
+                            <td><strong>${data.raw_value}</strong> ${data.unit}</td>
+                            <td>${data.normal_min}-${data.normal_max}</td>
+                        </tr>
+                    `;
+                }
+
+                // Action Builders
+                let actionHtml = "";
+                if (currentTask === "task1") {
+                    actionHtml = `
+                        <div class="action-panel">
+                            <label style="font-size:0.8rem; color:var(--text-muted);">Step Action Builder</label>
+                            <div class="action-row">
+                                <select id="sel-test">
+                                    ${p.available_tests.map(t => `<option>${t}</option>`).join('')}
+                                </select>
+                                <button class="btn" onclick="orderTestUi()">Queue Test</button>
+                            </div>
+                            <div class="action-row">
+                                <button class="btn btn-primary" onclick="sendTask1()" style="flex:1;">Submit Step (Advance Time)</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (currentTask === "task2") {
+                    actionHtml = `
+                        <div class="action-panel">
+                            <div class="action-row">
+                                <select id="sel-test">
+                                    ${p.available_tests.map(t => `<option>${t}</option>`).join('')}
+                                </select>
+                                <button class="btn" onclick="orderTestUi()">Queue Test</button>
+                            </div>
+                             <div class="action-row">
+                                <select id="sel-diag">
+                                    <option value="">-- No Diagnosis Yet --</option>
+                                    <option value="Anemia">Anemia</option>
+                                    <option value="Diabetes">Diabetes</option>
+                                    <option value="Liver Dysfunction">Liver Dysfunction</option>
+                                    <option value="Kidney Impairment">Kidney Impairment</option>
+                                    <option value="Hypothyroidism">Hypothyroidism</option>
+                                </select>
+                                <select id="sel-sev" style="max-width: 100px;">
+                                    <option value="MILD">MILD</option>
+                                    <option value="MODERATE">MODERATE</option>
+                                    <option value="SEVERE">SEVERE</option>
+                                </select>
+                            </div>
+                            <div class="action-row">
+                                <button class="btn btn-primary" onclick="sendTask2(false)" style="flex:1;">Advance & Wait</button>
+                                <button class="btn btn-primary" onclick="sendTask2(true)" style="background:var(--stable); border:none;">Treat Patient & Step</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (currentTask === "task3") {
+                    actionHtml = `
+                        <div class="action-panel">
+                            <button class="btn btn-primary" onclick="sendTask3('${p.patient_id}')">Assign Doctor to ${p.patient_id}</button>
+                        </div>
+                    `;
+                }
+
+                const cardHtml = `
+                    <div class="patient-card glass">
+                        <div class="patient-header">
+                            <div>
+                                <h2>${p.patient_name} <span style="font-weight:400; color:var(--text-muted);">(${p.age}${p.gender})</span></h2>
+                                <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Complaint: ${p.presenting_complaint}</div>
+                            </div>
+                            <div class="status-badge status-${p.status}">${p.status.replace('_', ' ')}</div>
+                        </div>
+
+                        <div class="vitals-grid">
+                            <div class="vital-box ${isCritHr}">
+                                <div class="label">Heart Rate</div>
+                                <div class="value">${p.vitals.heart_rate.toFixed(0)}</div>
+                            </div>
+                            <div class="vital-box ${isCritBp}">
+                                <div class="label">BP</div>
+                                <div class="value">${p.vitals.bp_systolic.toFixed(0)}/${p.vitals.bp_diastolic.toFixed(0)}</div>
+                            </div>
+                            <div class="vital-box ${isCritSp}">
+                                <div class="label">SpO2</div>
+                                <div class="value">${p.vitals.spo2.toFixed(1)}%</div>
+                            </div>
+                        </div>
+
+                        ${testRows ? `
+                        <div>
+                            <div style="font-size:0.8rem; margin-bottom:8px; color:var(--text-muted);">REVEALED LABS</div>
+                            <table class="tests-table">
+                                <tr><th>Test Name</th><th>Result</th><th>Range</th></tr>
+                                ${testRows}
+                            </table>
+                        </div>` : ''}
+
+                        ${!isDone ? actionHtml : ''}
+                    </div>
+                `;
+                patientsContainerEl.innerHTML += cardHtml;
+            });
+
+            // Extra Task 3 button
+            if (currentTask === "task3" && !isDone) {
+                patientsContainerEl.innerHTML += `
+                     <div class="patient-card glass" style="justify-content:center; align-items:center;">
+                        <h3 style="color:var(--text-muted);">Waiting Queue (Advance)</h3>
+                        <p style="text-align:center; font-size:0.85rem; color:var(--text-muted);">Wait for new patients or monitor vitals.</p>
+                        <button class="btn btn-primary" onclick="sendTask3(null)">Advance Time (15m)</button>
+                     </div>
+                `;
+            }
+        }
+
+        function orderTestUi() {
+            const val = document.getElementById('sel-test').value;
+            if (val && !pendingTestsToOrder.includes(val)) {
+                pendingTestsToOrder.push(val);
+                logEvent(`*Queued test locally: ${val}*`);
+            }
+        }
+
+        function buildCommonFlagObject() {
+            // Task 1 auto-flags available tests just to satisfy the API validation easily for demo purposes
+            // In a real UI, we would map drop downs per test, but we will auto-flag them to NORMAL for this simple UI to focus on the simulator
+            const flags = {};
+            if(stateObs && stateObs.patients[0]) {
+                for(let t of Object.keys(stateObs.patients[0].revealed_tests)) {
+                    flags[t] = "NORMAL";
+                }
+            }
+            return flags;
+        }
+
+        function sendTask1() {
+            submitStep({
+                order_tests: pendingTestsToOrder,
+                flagged_tests: buildCommonFlagObject()
+            });
+        }
+
+        function sendTask2(treat) {
+            const diag = document.getElementById('sel-diag').value;
+            const sev = document.getElementById('sel-sev').value;
+            
+            const patterns = diag ? [diag] : [];
+            
+            submitStep({
+                order_tests: pendingTestsToOrder,
+                identified_patterns: patterns,
+                severity: sev,
+                start_treatment: treat
+            });
+        }
+
+        function sendTask3(assign_pid) {
+            const action = {
+                assign_doctor: assign_pid,
+                urgency_ranking: stateObs.patients.map(p => p.patient_id)
+            };
+            submitStep(action);
+        }
+
+        // Init
+        window.onload = init;
+
+    </script>
+</body>
+</html>

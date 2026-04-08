@@ -1,0 +1,38 @@
+name: clinical-triage-env
+version: "1.0.0"
+description: "An OpenEnv environment simulating medical lab report triage in Indian diagnostic centers"
+author: "Nermal007"
+tags:
+  - openenv
+  - healthcare
+  - triage
+  - medical
+  - india
+
+tasks:
+  - id: task1
+    name: lab-technician
+    difficulty: easy
+    description: "Investigate and flag abnormal values in a single patient report by ordering specific tests step by step."
+    max_steps: 6
+
+  - id: task2
+    name: junior-doctor
+    difficulty: medium
+    description: "Identify disease patterns, order necessary tests, and treat the patient before they deteriorate."
+    max_steps: 8
+
+  - id: task3
+    name: triage-nurse
+    difficulty: hard
+    description: "Manage an active ED queue, order stat tests, assign doctors, and prevent critical crashes as new patients arrive."
+    max_steps: 12
+
+environment:
+  type: http
+  base_url: "http://localhost:7860"
+  endpoints:
+    reset: POST /reset
+    step: POST /step
+    state: GET /state
+    health: GET /health

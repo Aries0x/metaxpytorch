@@ -1,0 +1,29 @@
+# ── Secrets (NEVER commit) ──
+.env
+.env.*
+*.env
+**/.env
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# ── Virtual environments ──
+.venv/
+venv/
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Lock files (optional, remove if you want to track) ──
+uv.lock
